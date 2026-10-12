@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: investment-simulator
+  http:
+    clients:
+      connect-timeout: 1s
+      read-timeout: 2s
+  mvc:
+    problemdetails:
+      enabled: true
+market-data:
+  base-url: http://localhost:8081

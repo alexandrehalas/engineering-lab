@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/market-data/quotes/PETR4"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "symbol": "PETR4",
+      "lastPrice": 35.50,
+      "currency": "BRL",
+      "timestamp": "2026-10-10T14:30:00Z"
+    }
+  }
+}

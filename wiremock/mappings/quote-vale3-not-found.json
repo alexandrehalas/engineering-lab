@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/market-data/quotes/VALE3"
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/problem+json"
+    },
+    "jsonBody": {
+      "type": "https://market-data.example/problems/quote-not-found",
+      "title": "Quote not found",
+      "status": 404,
+      "code": "QUOTE_NOT_FOUND",
+      "message": "No quote is available for VALE3."
+    }
+  }
+}
