@@ -56,7 +56,13 @@ public class MarketDataHttpAdapter implements QuoteProvider {
             if (e.contains(HttpMessageNotReadableException.class)) {
                 throw new InvalidQuoteDataException("Market data response could not be deserialized", e);
             }
-            throw e;
+            if (e instanceof HttpClientErrorException) {
+                throw new InvalidQuoteDataException("Unexpected client error from market data provider", e);
+            }
+            if (e instanceof HttpServerErrorException) {
+                throw new QuoteProviderUnavailableException("Market data provider returned a server error", e);
+            }
+            throw new QuoteProviderUnavailableException("Unexpected error communicating with market data provider", e);
         }
     }
 

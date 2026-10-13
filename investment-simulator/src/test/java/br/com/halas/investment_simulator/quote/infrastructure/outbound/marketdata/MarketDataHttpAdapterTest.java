@@ -223,6 +223,30 @@ class MarketDataHttpAdapterTest {
         assertInstanceOf(HttpServerErrorException.ServiceUnavailable.class, failure.getCause());
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {500, 502})
+    void translatesOtherServerErrorToProviderUnavailable(int status) {
+        marketData.stubFor(get(urlEqualTo(QUOTE_PATH))
+                .willReturn(aResponse().withStatus(status)));
+
+        var failure = assertThrows(QuoteProviderUnavailableException.class,
+                () -> adapter.findByTicker(PETR4));
+
+        assertInstanceOf(HttpServerErrorException.class, failure.getCause());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {400, 401, 403})
+    void translatesOtherClientErrorToInvalidQuoteData(int status) {
+        marketData.stubFor(get(urlEqualTo(QUOTE_PATH))
+                .willReturn(aResponse().withStatus(status)));
+
+        var failure = assertThrows(InvalidQuoteDataException.class,
+                () -> adapter.findByTicker(PETR4));
+
+        assertInstanceOf(HttpClientErrorException.class, failure.getCause());
+    }
+
     @Test
     void translatesReadTimeoutAndPreservesCommunicationCause() {
         marketData.stubFor(get(urlEqualTo(QUOTE_PATH))
