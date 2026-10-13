@@ -1,4 +1,4 @@
-package br.com.halas.investment_simulator.quote.application;
+package br.com.halas.investment_simulator.quote.application.port;
 
 import br.com.halas.investment_simulator.quote.domain.model.Quote;
 import br.com.halas.investment_simulator.quote.domain.model.Ticker;

@@ -1,7 +1,7 @@
 package br.com.halas.investment_simulator.quote.infrastructure.config;
 
 import br.com.halas.investment_simulator.quote.application.GetQuoteUseCase;
-import br.com.halas.investment_simulator.quote.application.QuoteProvider;
+import br.com.halas.investment_simulator.quote.application.port.QuoteProvider;
 import br.com.halas.investment_simulator.quote.domain.policy.SupportedAssetCatalog;
 import br.com.halas.investment_simulator.quote.infrastructure.outbound.marketdata.MarketDataHttpAdapter;
 import br.com.halas.investment_simulator.quote.infrastructure.outbound.marketdata.MarketDataQuoteMapper;

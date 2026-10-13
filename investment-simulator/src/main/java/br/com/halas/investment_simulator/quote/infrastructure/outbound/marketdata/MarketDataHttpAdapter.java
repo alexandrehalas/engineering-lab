@@ -1,6 +1,6 @@
 package br.com.halas.investment_simulator.quote.infrastructure.outbound.marketdata;
 
-import br.com.halas.investment_simulator.quote.application.QuoteProvider;
+import br.com.halas.investment_simulator.quote.application.port.QuoteProvider;
 import br.com.halas.investment_simulator.quote.application.exception.InvalidQuoteDataException;
 import br.com.halas.investment_simulator.quote.application.exception.QuoteProviderUnavailableException;
 import br.com.halas.investment_simulator.quote.domain.model.Quote;

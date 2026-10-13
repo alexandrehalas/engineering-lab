@@ -1,5 +1,6 @@
 package br.com.halas.investment_simulator.quote.application;
 
+import br.com.halas.investment_simulator.quote.application.port.QuoteProvider;
 import br.com.halas.investment_simulator.quote.application.exception.InvalidQuoteDataException;
 import br.com.halas.investment_simulator.quote.application.exception.QuoteProviderUnavailableException;
 import br.com.halas.investment_simulator.quote.application.exception.UnsupportedTickerException;
