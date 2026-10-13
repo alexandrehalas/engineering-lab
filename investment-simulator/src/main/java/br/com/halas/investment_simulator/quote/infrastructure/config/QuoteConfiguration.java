@@ -26,8 +26,8 @@ public class QuoteConfiguration {
     }
 
     @Bean
-    public QuoteProvider quoteProvider(RestClient restClient, MarketDataQuoteMapper quoteMapper) {
-        return new MarketDataHttpAdapter(restClient, quoteMapper);
+    public QuoteProvider quoteProvider(RestClient marketDataRestClient, MarketDataQuoteMapper quoteMapper) {
+        return new MarketDataHttpAdapter(marketDataRestClient, quoteMapper);
     }
 
     @Bean
