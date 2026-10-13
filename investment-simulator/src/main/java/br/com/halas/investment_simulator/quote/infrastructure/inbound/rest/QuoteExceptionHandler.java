@@ -1,6 +1,7 @@
 package br.com.halas.investment_simulator.quote.infrastructure.inbound.rest;
 
 import br.com.halas.investment_simulator.quote.application.exception.InvalidQuoteDataException;
+import br.com.halas.investment_simulator.quote.application.exception.QuoteNotFoundException;
 import br.com.halas.investment_simulator.quote.application.exception.QuoteProviderUnavailableException;
 import br.com.halas.investment_simulator.quote.application.exception.UnsupportedTickerException;
 import org.springframework.core.annotation.Order;
@@ -8,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice(assignableTypes = QuoteController.class)
 @Order(-1)
@@ -38,19 +38,11 @@ public class QuoteExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler(ResponseStatusException.class)
-    public ProblemDetail handleResponseStatusException(
-            ResponseStatusException exception) {
-
-        var problem = ProblemDetail.forStatus(exception.getStatusCode());
-
-        if (exception.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
-            problem.setProperty("code", "QUOTE_NOT_FOUND");
-            problem.setProperty(
-                    "message",
-                    "No quote is available for the requested ticker.");
-        }
-
+    @ExceptionHandler(QuoteNotFoundException.class)
+    public ProblemDetail handleQuoteNotFound() {
+        var problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        problem.setProperty("code", "QUOTE_NOT_FOUND");
+        problem.setProperty("message", "No quote is available for the requested ticker.");
         return problem;
     }
 }

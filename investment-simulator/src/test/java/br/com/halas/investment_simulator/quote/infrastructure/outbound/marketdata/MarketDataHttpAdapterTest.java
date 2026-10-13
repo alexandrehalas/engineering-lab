@@ -226,7 +226,7 @@ class MarketDataHttpAdapterTest {
     @Test
     void translatesReadTimeoutAndPreservesCommunicationCause() {
         marketData.stubFor(get(urlEqualTo(QUOTE_PATH))
-                .willReturn(okJson(VALID_QUOTE).withFixedDelay(3000)));
+                .willReturn(okJson(VALID_QUOTE).withFixedDelay(30_000)));
         var timeoutAdapter = adapterWithReadTimeout(Duration.ofMillis(300));
 
         var failure = assertThrows(QuoteProviderUnavailableException.class,
