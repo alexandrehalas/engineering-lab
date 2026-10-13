@@ -27,7 +27,7 @@ public class QuoteController {
         return new QuoteResponse(
                 quote.ticker().code(),
                 quote.money().amount(),
-                quote.money().currency().toString(),
+                quote.money().currency().getCurrencyCode(),
                 quote.referenceTime());
     }
 
