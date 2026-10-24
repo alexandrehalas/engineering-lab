@@ -176,6 +176,7 @@ Repository-specific instructions for coding agents are in [AGENTS.md](AGENTS.md)
 | [UC-001 — Stock Quote Retrieval](docs/use-cases/uc-001-consultar-cotacao.md) | Business rules, scenarios, and acceptance criteria |
 | [Initial Architecture](docs/architecture/initial-architecture.md) | Components, boundaries, contracts, test strategy, and pending decisions |
 | [ADR-0001 — Architecture Style](docs/architecture/adr/0001-architecture-style.md) | Alternatives and rationale for Hexagonal Architecture with Package by Feature |
+| [EXP-001 — Observability and PromQL study](docs/studies/exp-001-observabilidade-e-promql.md) | Actuator, Micrometer, Prometheus, query explanations, and troubleshooting notes |
 | [AGENTS.md](AGENTS.md) | Working agreements and guardrails for AI-assisted development |
 
 The README and source-code identifiers are written in **English**. Business specifications, architectural documentation, ADRs, and experiment notes are maintained in **Brazilian Portuguese**. A domain glossary helps preserve consistent meaning across languages.
@@ -201,14 +202,14 @@ EXP-001 investigates latency, concurrency, and saturation in the UC-001 HTTP int
 | --- | --- | --- |
 | Spring Boot Actuator | Exposes monitoring endpoints such as `/actuator/health` and `/actuator/metrics` | Health and metrics endpoints validated locally |
 | Micrometer | Records application measurements, including incoming and outgoing HTTP request counts and durations, JVM memory, and CPU usage | Integrated through Actuator; JVM memory and HTTP metrics validated locally |
-| Prometheus | Periodically collects metrics from the application and stores time series for queries with PromQL | Server setup and collection planned |
+| Prometheus | Periodically collects metrics from the application and stores time series for queries with PromQL | Local collection validated, including CPU, request counts, throughput, mean latency, and p95 queries |
 | Grafana | Queries the collected data and displays dashboards | Setup and dashboards planned |
 
 The intended flow is: application measurements through Micrometer → `/actuator/prometheus` exposed by Actuator → periodic collection by Prometheus → visualization in Grafana.
 
 `micrometer-registry-prometheus` adapts the metrics to the format Prometheus collects; adding this dependency does not install the Prometheus server. The registry and endpoint are configured, and Prometheus metric export has been validated locally, including HTTP histogram buckets. The JSON endpoint `/actuator/metrics` remains useful for inspecting individual meters directly.
 
-These measurements are instrumentation checks, not performance benchmark results. Detailed study notes and experimental conclusions will follow the executed load scenarios and their analysis.
+These measurements are instrumentation checks, not performance benchmark results. Concepts, validated queries, and troubleshooting are documented in the [observability study notes](docs/studies/exp-001-observabilidade-e-promql.md) (Brazilian Portuguese). Experimental conclusions will follow the executed load scenarios and their analysis.
 
 ## Running locally
 
@@ -216,7 +217,7 @@ The commands below use PowerShell on Windows. Docker commands run from the repos
 
 ### Prerequisites
 
-- Docker Desktop running with Linux containers and Docker Compose v2 for WireMock and k6.
+- Docker Desktop running with Linux containers and Docker Compose v2 for WireMock, k6, and Prometheus.
 - JDK 25 for the application and tests. Configure `JAVA_HOME` to the JDK installation and make its `bin` directory available on `PATH`.
 - Internet access on the first run to download the Docker images, Maven distribution, and dependencies. The repository includes the Maven Wrapper; a separate Maven installation is not required.
 
@@ -375,6 +376,64 @@ docker compose --profile performance run --rm k6 run --vus 1 --iterations 1 quot
 ```
 
 This runs one virtual user (VU) and one iteration of the script's default function, which sends a GET request for `PETR4`. The relative path `quote.js` resolves inside `/scripts`. Inspect the logged response for HTTP `200` and the synthetic quote JSON; this single-request execution validates functionality, not sustained performance.
+
+### Prepare Prometheus
+
+Prometheus uses `prom/prometheus:v3.13.5` under the `observability` profile. Run the following commands from the repository root. Download the image explicitly if needed:
+
+```powershell
+docker compose --profile observability pull prometheus
+```
+
+Validate the Compose configuration:
+
+```powershell
+docker compose --profile observability config --quiet
+```
+
+Successful validation produces no output and exits with code `0`. Then validate the mounted scrape configuration using the `promtool` executable included in the image:
+
+```powershell
+docker compose --profile observability run --rm --entrypoint /bin/promtool prometheus check config /etc/prometheus/prometheus.yml
+```
+
+The tool should report a valid configuration and exit with code `0`. This temporary container runs only the validator, not the Prometheus server; the command downloads the image automatically if it is missing.
+
+The configuration at `observability/prometheus/prometheus.yml` is mounted read-only and targets `host.docker.internal:8080/actuator/prometheus` every 15 seconds. The named volume `prometheus-data` stores collected time series. Configuration validation does not confirm connectivity or successful collection from the application.
+
+### Start Prometheus and verify collection
+
+With the Spring Boot application running on Windows, start the collector from the repository root:
+
+```powershell
+docker compose --profile observability up -d prometheus
+```
+
+Open `http://localhost:9090/targets` and allow at least one 15-second scrape interval. The `investment-simulator` target should be **UP**. This confirms successful metric collection, not the functional health of UC-001. For startup or collection troubleshooting:
+
+```powershell
+docker compose --profile observability logs --tail 50 prometheus
+```
+
+Open `http://localhost:9090/query` and execute:
+
+```promql
+up{job="investment-simulator"}
+```
+
+Expect `1` for a successful scrape. To populate the quote metrics after an application restart, make a request and allow another scrape interval:
+
+```powershell
+curl.exe -i http://localhost:8080/v1/quotes/PETR4
+```
+
+Throughput and latency queries require traffic and enough collected samples in their time window. See the [study notes](docs/studies/exp-001-observabilidade-e-promql.md#7-consultas-promql-que-executamos) for the validated PromQL expressions, units, and interpretation limits.
+
+To stop collection while preserving the named data volume:
+
+```powershell
+docker compose --profile observability stop prometheus
+```
 
 ### Call the quote API
 

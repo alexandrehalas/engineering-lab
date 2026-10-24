@@ -14,3 +14,14 @@ services:
     working_dir: /scripts
     extra_hosts:
       - "host.docker.internal:host-gateway"
+  prometheus:
+    image: prom/prometheus:v3.13.5
+    profiles:
+      - observability
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+volumes:
+  prometheus-data:
