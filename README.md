@@ -193,6 +193,23 @@ The README and source-code identifiers are written in **English**. Business spec
 
 Future topics may include resilience mechanisms, concurrency, transactions, messaging, and observability. Each addition must answer a concrete question and produce verifiable learning.
 
+## Observability — EXP-001
+
+EXP-001 investigates latency, concurrency, and saturation in the UC-001 HTTP integration. The observability tools have distinct roles:
+
+| Tool | Role | Current status |
+| --- | --- | --- |
+| Spring Boot Actuator | Exposes monitoring endpoints such as `/actuator/health` and `/actuator/metrics` | Health and metrics endpoints validated locally |
+| Micrometer | Records application measurements, including incoming and outgoing HTTP request counts and durations, JVM memory, and CPU usage | Integrated through Actuator; JVM memory and HTTP metrics validated locally |
+| Prometheus | Periodically collects metrics from the application and stores time series for queries with PromQL | Server setup and collection planned |
+| Grafana | Queries the collected data and displays dashboards | Setup and dashboards planned |
+
+The intended flow is: application measurements through Micrometer → `/actuator/prometheus` exposed by Actuator → periodic collection by Prometheus → visualization in Grafana.
+
+`micrometer-registry-prometheus` adapts the metrics to the format Prometheus collects; adding this dependency does not install the Prometheus server. The registry and endpoint are configured, and Prometheus metric export has been validated locally, including HTTP histogram buckets. The JSON endpoint `/actuator/metrics` remains useful for inspecting individual meters directly.
+
+These measurements are instrumentation checks, not performance benchmark results. Detailed study notes and experimental conclusions will follow the executed load scenarios and their analysis.
+
 ## Running locally
 
 The commands below use PowerShell on Windows. Docker commands run from the repository root (`engineering-lab/`); Maven commands run from `investment-simulator/`.

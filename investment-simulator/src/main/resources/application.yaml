@@ -13,7 +13,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,metrics
+        include: health,metrics,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        http.client.requests: true
+
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
 
 market-data:
   base-url: http://localhost:8081
