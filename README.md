@@ -203,7 +203,7 @@ EXP-001 investigates latency, concurrency, and saturation in the UC-001 HTTP int
 | Spring Boot Actuator | Exposes monitoring endpoints such as `/actuator/health` and `/actuator/metrics` | Health and metrics endpoints validated locally |
 | Micrometer | Records application measurements, including incoming and outgoing HTTP request counts and durations, JVM memory, and CPU usage | Integrated through Actuator; JVM memory and HTTP metrics validated locally |
 | Prometheus | Periodically collects metrics from the application and stores time series for queries with PromQL | Local collection validated, including CPU, request counts, throughput, mean latency, and p95 queries |
-| Grafana | Queries the collected data and displays dashboards | Setup and dashboards planned |
+| Grafana | Queries the collected data and displays dashboards | Datasource and seven-panel dashboard provisioned from files; connection, visualization, and UI save restriction validated locally |
 
 The intended flow is: application measurements through Micrometer → `/actuator/prometheus` exposed by Actuator → periodic collection by Prometheus → visualization in Grafana.
 
@@ -217,9 +217,48 @@ The commands below use PowerShell on Windows. Docker commands run from the repos
 
 ### Prerequisites
 
-- Docker Desktop running with Linux containers and Docker Compose v2 for WireMock, k6, and Prometheus.
+- Docker Desktop running with Linux containers and Docker Compose v2 for WireMock, k6, Prometheus, and Grafana.
 - JDK 25 for the application and tests. Configure `JAVA_HOME` to the JDK installation and make its `bin` directory available on `PATH`.
 - Internet access on the first run to download the Docker images, Maven distribution, and dependencies. The repository includes the Maven Wrapper; a separate Maven installation is not required.
+
+### Resume development after restarting Windows
+
+For an environment that has already been set up:
+
+1. Open **Docker Desktop** from the Windows Start menu and wait for the Docker Engine to be ready.
+2. Open PowerShell at the repository root and verify Docker connectivity, start the lab services, and inspect their status:
+
+   ```powershell
+   docker info
+   docker compose --profile observability up -d wiremock prometheus grafana
+   docker compose --profile observability ps
+   ```
+
+3. Run `InvestmentSimulatorApplication` in IntelliJ. Alternatively, open another terminal in `investment-simulator/` and run `./mvnw.cmd spring-boot:run`. Start only one application instance on port `8080`.
+4. Open [application health](http://localhost:8080/actuator/health) and expect `UP`. Then open [Prometheus targets](http://localhost:9090/targets) and allow at least one 15-second scrape interval for `investment-simulator` to become **UP**.
+5. Open [Grafana](http://localhost:3000) and sign in using the password previously chosen. Generate a [PETR4 quote request](http://localhost:8080/v1/quotes/PETR4) to start populating the current HTTP metrics.
+
+The k6 service remains on demand. Existing local images are reused; there is no need to repeat the image downloads on every startup. The named volumes preserve Prometheus history and Grafana users and dashboards. Application counters restart with the Java process; recent latency and throughput queries need new requests and enough scrape samples in their selected window.
+
+### Local access links
+
+These links open services published on the Windows host. Start the environment before using them. The application provides API endpoints rather than a homepage.
+
+| Service or endpoint | Browser link | Purpose |
+| --- | --- | --- |
+| Application health | [Health](http://localhost:8080/actuator/health) | Inspect configured health indicators |
+| UC-001 success | [PETR4 quote](http://localhost:8080/v1/quotes/PETR4) | Request a synthetic quote |
+| UC-001 missing quote | [VALE3 quote](http://localhost:8080/v1/quotes/VALE3) | Exercise the expected `404` scenario |
+| UC-001 provider unavailable | [ITUB4 quote](http://localhost:8080/v1/quotes/ITUB4) | Exercise the expected `503` scenario |
+| Actuator inspection | [Metrics list](http://localhost:8080/actuator/metrics) | Inspect available meter names |
+| Prometheus export | [Application metric export](http://localhost:8080/actuator/prometheus) | Inspect the text collected by Prometheus |
+| Prometheus | [Query interface](http://localhost:9090/query) | Execute PromQL and view series |
+| Prometheus targets | [Scrape targets](http://localhost:9090/targets) | Check collection status and errors |
+| Grafana | [Grafana home](http://localhost:3000) | Open dashboards and Explore |
+| WireMock mappings | [Mappings API](http://localhost:8081/__admin/mappings) | Inspect loaded stubs as JSON |
+| WireMock quote | [Provider PETR4 response](http://localhost:8081/market-data/quotes/PETR4) | Inspect the provider response directly |
+
+The provider link bypasses Spring Boot; use the application quote link when validating UC-001 end to end. Container-only addresses such as `http://prometheus:9090` and `http://host.docker.internal:8080` are configuration values, not browser links for the Windows host.
 
 ### Prepare Docker images (first run)
 
@@ -248,7 +287,7 @@ docker compose up -d wiremock
 docker compose ps
 ```
 
-The Compose service uses `wiremock/wiremock:3.13.2`. Port `8080` inside the container is published on `127.0.0.1:8081`, so WireMock is available at `http://localhost:8081` and the application can use local port `8080` separately. The local `wiremock/mappings/` directory is mounted read-only at `/home/wiremock/mappings`, where WireMock loads the JSON stubs at startup.
+The Compose service uses `wiremock/wiremock:3.13.2`. Port `8080` inside the container is published on `127.0.0.1:8081`, so the [WireMock mappings API](http://localhost:8081/__admin/mappings) is available on the host and the application can use local port `8080` separately. The local `wiremock/mappings/` directory is mounted read-only at `/home/wiremock/mappings`, where WireMock loads the JSON stubs at startup.
 
 ### Verify WireMock
 
@@ -409,13 +448,13 @@ With the Spring Boot application running on Windows, start the collector from th
 docker compose --profile observability up -d prometheus
 ```
 
-Open `http://localhost:9090/targets` and allow at least one 15-second scrape interval. The `investment-simulator` target should be **UP**. This confirms successful metric collection, not the functional health of UC-001. For startup or collection troubleshooting:
+Open [Prometheus targets](http://localhost:9090/targets) and allow at least one 15-second scrape interval. The `investment-simulator` target should be **UP**. This confirms successful metric collection, not the functional health of UC-001. For startup or collection troubleshooting:
 
 ```powershell
 docker compose --profile observability logs --tail 50 prometheus
 ```
 
-Open `http://localhost:9090/query` and execute:
+Open the [Prometheus query interface](http://localhost:9090/query) and execute:
 
 ```promql
 up{job="investment-simulator"}
@@ -434,6 +473,64 @@ To stop collection while preserving the named data volume:
 ```powershell
 docker compose --profile observability stop prometheus
 ```
+
+### Start Grafana
+
+Grafana OSS uses `grafana/grafana:13.2.4` under the `observability` profile. From the repository root, optionally download the image, validate the Compose configuration, and start Prometheus and Grafana:
+
+```powershell
+docker compose --profile observability pull grafana
+docker compose --profile observability config --quiet
+docker compose --profile observability up -d prometheus grafana
+```
+
+The startup command also downloads missing images. Open [Grafana](http://localhost:3000). On the first initialization of a fresh `grafana-data` volume, sign in with username `admin` and password `admin`, then choose a new password when prompted. Later starts reuse the credentials stored in that volume.
+
+The directory `observability/grafana/provisioning/` is mounted read-only at `/etc/grafana/provisioning`. Its `datasources/prometheus.yml` file provisions a default Prometheus datasource with UID `prometheus`, URL `http://prometheus:9090`, and a 15-second scrape interval setting. The URL uses the Compose service name because Grafana queries Prometheus from inside the Docker network. This datasource setting does not change the actual collection interval configured in Prometheus.
+
+The datasource is managed by the versioned file, with UI editing disabled. The named volume `grafana-data`, mounted at `/var/lib/grafana`, preserves users, preferences, and dashboard database records when the container is recreated. The dashboard itself is also provisioned from the JSON file described below.
+
+For troubleshooting:
+
+```powershell
+docker compose --profile observability logs --tail 50 grafana
+```
+
+To stop Grafana while preserving its data and leaving Prometheus running:
+
+```powershell
+docker compose --profile observability stop grafana
+```
+
+### Maintain and restore the Grafana dashboard
+
+The [HTTP Integration dashboard JSON](observability/grafana/dashboards/HTTP%20Integration.json) is the source of truth for its queries, layout, units, and legends. It contains seven panels: throughput, API mean latency and p95, outbound HTTP mean latency and p95, Tomcat threads, CPU, JVM heap memory, and HTTP response rates by status.
+
+The [dashboard provider](observability/grafana/provisioning/dashboards/dashboards.yml) tells Grafana to load files from `/var/lib/grafana/dashboards`. Compose mounts `observability/grafana/dashboards/` there as read-only, while the provider configuration is supplied through the existing `/etc/grafana/provisioning` mount. The current export uses the V2 Resource JSON format, supported by the pinned Grafana version.
+
+The provider settings have these effects:
+
+- `allowUiUpdates: false` prevents saving the provisioned dashboard directly through the browser.
+- `updateIntervalSeconds: 30` makes Grafana poll for file changes every 30 seconds.
+- `disableDeletion: true` keeps the database dashboard if its source file is removed; removing a file does not automatically delete the dashboard.
+
+To change the dashboard, edit the JSON in the repository, or make visual adjustments in Grafana and export the updated definition using **Export → Export as code → V2 Resource → JSON**. Replace the repository JSON with the exported version, preserving the dashboard identity and datasource reference `prometheus`. Browser edits are not written back to the mounted file. Review the diff, wait for the next provisioning scan, and reload the dashboard to verify the result before committing.
+
+When changing an existing JSON, a container restart is normally unnecessary. When adding or changing Compose mounts, apply them with:
+
+```powershell
+docker compose --profile observability up -d grafana
+```
+
+After adding or changing the provider YAML, restart Grafana so it reloads the provisioning configuration:
+
+```powershell
+docker compose --profile observability restart grafana
+```
+
+To restore the dashboard after reinstalling Grafana, keep this repository and start the Compose services as described above. Grafana loads the datasource and dashboard automatically from their provisioning files. Start the application and verify the [Prometheus target](http://localhost:9090/targets) to populate the panels with current measurements.
+
+The JSON preserves the dashboard definition, not historical metric samples, users, or passwords. Prometheus history is stored in `prometheus-data`; Grafana users and credentials are stored in `grafana-data`. If the Grafana volume is new, complete the initial admin login and password change again. Reusing the JSON alone does not recover those volumes.
 
 ### Call the quote API
 
